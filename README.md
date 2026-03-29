@@ -1,44 +1,61 @@
 # 🏢 Secure Employee Directory
 
-A production-grade three-tier web application demonstrating AWS cloud security best practices — private subnets, KMS encryption, IAM least privilege, Secrets Manager, and SSM-only EC2 access.
+A production-grade three-tier web application demonstrating AWS cloud security best practices — private subnets, KMS encryption at rest, IAM least privilege, Secrets Manager credential management, and SSM-only EC2 access. No SSH. No hardcoded secrets.
 
----
-
-## 🌐 Live Demo
-
-[View the app](#) <!-- Add your Vercel URL here -->
-
----
 
 ## ✨ Features
 
-- **User authentication** — email and password login with bcrypt hashing and JWT sessions. No additional AWS services required.
-- **Personal profiles** — users see only their own employee record after signing in
-- **Employee directory** — browse colleagues by name, role, and department
-- **Admin panel** — completely separate page at `/admin`, restricted to admin accounts, with full add / edit / delete capability
-- **Dark and light mode** — preference saved across sessions
-- **Fully mobile-responsive** — bottom navigation bar on mobile, pill navigation on desktop
+- **Email + password authentication** — bcrypt-hashed passwords, JWT sessions, stored in PostgreSQL
+- **Role-based routing** — regular users go to `/app`, admin goes to `/admin` automatically on login
+- **Personal profile dashboard** — users see and edit only their own employee record
+- **Employee directory** — browse all colleagues; own card is highlighted and clickable
+- **Admin panel** — completely separate page at `/admin`, username + password login (credentials stored as server environment variables — not in the database)
+- **Dark and light mode** — preference saved in localStorage across sessions
+- **Fully mobile-responsive** — bottom navigation bar on mobile, pill nav on desktop
+- **Security headers** — `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection` set via Vercel on every response
+
+---
+
+## 🗂️ File Structure
+
+```
+employee-directory/
+├── index.html          # Public login and registration page
+├── app.html            # Authenticated user dashboard  → served at /app
+├── admin.html          # Admin management panel        → served at /admin
+├── vercel.json         # URL routing, API rewrite, security headers
+├── README.md
+└── api/
+    └── proxy.js        # Vercel serverless function — reads API_BASE_URL server-side
+                        # Forwards JWT Authorization header to backend
+                        # Backend URL never exposed to the browser
+```
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-Browser (Vercel)
+Browser (Vercel CDN — global)
     │
-    │ HTTPS  —  /api/* routed through serverless proxy
-    │           JWT forwarded server-side (API URL never exposed)
+    │  HTTPS
+    │  /api/* → serverless proxy (API_BASE_URL read server-side only)
+    │  JWT forwarded in Authorization header
     ▼
 Application Load Balancer
-    │  HTTP:80  ·  Internet-facing  ·  Public subnet
+    │  HTTP:80  ·  Internet-facing  ·  Public subnets
+    │  Security group: alb-sg
     ▼
-EC2 (Node.js + Express)
-    │  Port 8080  ·  Private subnet  ·  No public IP
-    │  SSM Session Manager access only
+EC2 — Node.js + Express  (Port 8080)
+    │  Private subnet  ·  No public IP
+    │  Access via SSM Session Manager only — no SSH, no port 22
+    │  IAM role: EmployeeDirAppRole
+    │  Fetches DB credentials from Secrets Manager at startup
     ▼
-RDS PostgreSQL
+RDS PostgreSQL 15
     │  Private subnet  ·  Zero internet path
-    │  Encrypted at rest with KMS CMK
+    │  Encrypted at rest — KMS Customer Managed Key
+    │  Security group: rds-sg (accepts only from app-sg)
 ```
 
 ---
@@ -47,61 +64,103 @@ RDS PostgreSQL
 
 | Control | Detail |
 |---------|--------|
-| No public EC2 IP | Private subnet, SSM Session Manager only |
-| No SSH | No port 22, no key pair — browser terminal via AWS |
-| Secrets management | DB credentials fetched from Secrets Manager at runtime |
+| No public EC2 IP | Private subnet — SSM Session Manager only |
+| No SSH | No port 22, no key pair. Browser terminal via AWS Systems Manager |
+| Secrets management | DB credentials stored in Secrets Manager, fetched at runtime — never in source code |
 | Encryption at rest | RDS and Secrets Manager encrypted with Customer Managed KMS Key |
-| IAM least privilege | EC2 role scoped only to its own secrets namespace |
-| Security group chaining | ALB → EC2 → RDS, each layer accepts only from the previous |
-| Password hashing | bcryptjs with cost factor 12 — passwords never stored in plain text |
-| JWT sessions | 7-day expiry, signed with `JWT_SECRET` environment variable |
-| API URL hidden | Vercel serverless proxy reads `API_BASE_URL` server-side only |
-| VPC Flow Logs | All network traffic logged to CloudWatch |
+| IAM least privilege | EC2 role scoped to project secrets namespace only |
+| Security group chaining | alb-sg → app-sg → rds-sg. Each tier accepts only from the previous |
+| Password hashing | bcryptjs, cost factor 12. Passwords never stored in plain text |
+| JWT sessions | Employee sessions: 7-day expiry. Admin sessions: 8-hour expiry |
+| Admin credentials | Stored as environment variables on EC2 — not in the database |
+| API URL hidden | Vercel proxy reads `API_BASE_URL` server-side — never reaches the browser |
+| Security headers | `nosniff`, `DENY` frame options, XSS protection on all Vercel responses |
+| VPC Flow Logs | All ACCEPT and REJECT traffic captured to CloudWatch |
 
 ---
 
-## 📁 Project Structure
+## 🔄 How the Proxy Works
 
 ```
-employee-directory-frontend/
-├── index.html          # Login and registration page (public)
-├── app.html            # User dashboard (requires login) — served at /app
-├── admin.html          # Admin panel (requires admin login) — served at /admin
-├── vercel.json         # URL routing and /api/* rewrite config
-├── README.md
-└── api/
-    └── proxy.js        # Serverless function — reads API_BASE_URL from env vars
-                        # Forwards JWT header to backend — never exposes API URL
+Browser  →  fetch('/api/auth/login')
+         →  vercel.json rewrites to /api/proxy?path=auth/login
+         →  proxy.js reads process.env.API_BASE_URL  (server-side only)
+         →  forwards request + Authorization header to ALB
+         →  returns JSON response to browser
 ```
+
+**Critical:** `vercel.json` uses `(.*)` regex capture with `$1` — not `:path*`. The `(.*)` syntax correctly passes the captured path as a query parameter to the proxy function. The proxy also validates the path parameter and returns a structured error if it is missing.
 
 ---
 
-## ⚙️ How the Auth System Works
+## 🔒 Auth Flow
 
-Passwords are hashed using **bcryptjs** and stored in the PostgreSQL database. No additional AWS services (Cognito, etc.) are needed.
-
+### Employee (email + password)
 ```
 Register:  name + email + password
-           → bcrypt.hash(password, 12) → stored in users table
+           → bcrypt.hash(password, 12) stored in users table
            → employee record created and linked
-           → JWT returned (7 days expiry)
+           → JWT returned (7-day expiry)
+           → redirected to /app
 
 Login:     email + password
-           → bcrypt.compare(password, stored_hash)
-           → JWT returned with user_id, employee_id, is_admin flag
+           → bcrypt.compare against stored hash
+           → JWT returned with employee_id, is_admin: false
+           → redirected to /app
+```
 
-Protected: JWT sent in Authorization: Bearer <token> header
-           → proxy.js forwards it to EC2
-           → server verifies with jsonwebtoken
+### Admin (username + password)
+```
+Login:     username + password
+           → compared against ADMIN_USERNAME / ADMIN_PASSWORD env vars
+           → 800ms delay on failure (brute-force protection)
+           → JWT returned with is_admin: true (8-hour expiry)
+           → redirected to /admin
+           → session persisted in localStorage, restored on next visit
 ```
 
 ---
 
-## 🔒 Admin Access
+## 📱 Pages and Navigation
 
-The admin page lives at `/admin` — a completely separate page not linked from the main app.
+| URL | File | Who can access |
+|-----|------|---------------|
+| `/` | `index.html` | Everyone — login and register |
+| `/app` | `app.html` | Logged-in employees only |
+| `/admin` | `admin.html` | Admin only — no link from main app |
 
-An account becomes an admin when its email matches the `ADMIN_EMAIL` environment variable on the EC2. Set this before the admin registers their account.
+### `/app` — three client-side pages
+| Tab | What it does |
+|-----|-------------|
+| **My Profile** | Full personal record in a banner card — name, role, department, email, phone, DOB, start date, address, emergency contact |
+| **Directory** | All staff (name, role, department only). Own card highlighted with "You" badge — click to go back to profile |
+| **Edit Profile** | Update phone, department, date of birth, start date, address, emergency contact |
+
+### `/admin` — admin dashboard
+- Login gate — username and password
+- Stats bar — total employees, departments, unique roles, session duration
+- Searchable full employee table
+- Add employee modal
+- Edit employee modal (all fields)
+- Delete with confirmation — removes employee and linked user account
+
+---
+
+## 🚀 API Endpoints
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/health` | None | Health check — `{"status":"ok"}` |
+| `GET` | `/employees` | JWT | Directory list — name, role, department only |
+| `POST` | `/auth/register` | None | Create employee account |
+| `POST` | `/auth/login` | None | Authenticate, receive JWT |
+| `GET` | `/auth/me` | JWT | Get own full profile |
+| `PUT` | `/auth/me` | JWT | Update own profile |
+| `POST` | `/admin/login` | None | Admin credentials → JWT |
+| `GET` | `/admin/employees` | Admin JWT | All employees, all fields |
+| `POST` | `/admin/employees` | Admin JWT | Add employee |
+| `PUT` | `/admin/employees/:id` | Admin JWT | Edit employee |
+| `DELETE` | `/admin/employees/:id` | Admin JWT | Delete employee + linked user |
 
 ---
 
@@ -111,57 +170,41 @@ An account becomes an admin when its email matches the `ADMIN_EMAIL` environment
 
 | Variable | Description |
 |----------|-------------|
-| `AWS_REGION` | AWS region (e.g. `us-west-1`) |
-| `APP_PORT` | Port to run the server on (e.g. `8080`) |
-| `SECRET_ARN` | ARN of the Secrets Manager secret containing DB credentials |
+| `AWS_REGION` | AWS region |
+| `APP_PORT` | Node.js server port (e.g. `8080`) |
+| `SECRET_ARN` | ARN of the Secrets Manager secret for DB credentials |
 | `DB_HOST` | RDS endpoint hostname |
-| `JWT_SECRET` | Long random string used to sign JWT tokens |
-| `ADMIN_EMAIL` | Email address that gets admin privileges on first registration |
+| `JWT_SECRET` | Random string for signing JWT tokens — auto-generated by setup script |
+| `ADMIN_USERNAME` | Admin login username |
+| `ADMIN_PASSWORD` | Admin login password |
 
 ### Vercel — Project Settings → Environment Variables
 
 | Variable | Description |
 |----------|-------------|
-| `API_BASE_URL` | Your ALB DNS name — e.g. `http://your-alb.us-west-1.elb.amazonaws.com` |
+| `API_BASE_URL` | ALB DNS name — e.g. `http://your-alb.region.elb.amazonaws.com` |
 
-> Switch `API_BASE_URL` to `https://yourdomain.com` after adding an ACM certificate and HTTPS listener.
-
----
-
-## 🚀 API Endpoints
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `GET` | `/health` | None | Health check |
-| `GET` | `/employees` | None | Public list (name, role, dept only) |
-| `POST` | `/auth/register` | None | Create account + employee record |
-| `POST` | `/auth/login` | None | Authenticate, receive JWT |
-| `GET` | `/auth/me` | JWT | Get own full profile |
-| `PUT` | `/auth/me` | JWT | Update own profile |
-| `GET` | `/admin/employees` | Admin JWT | All employees with all fields |
-| `POST` | `/admin/employees` | Admin JWT | Add employee |
-| `PUT` | `/admin/employees/:id` | Admin JWT | Edit employee |
-| `DELETE` | `/admin/employees/:id` | Admin JWT | Delete employee |
+> Update `API_BASE_URL` to `https://yourdomain.com` after adding an ACM certificate.
 
 ---
 
 ## 🛠️ EC2 Setup
 
-After deploying `server.js`, install the new dependencies:
+Run the one-time setup script to configure credentials and auto-generate the JWT secret:
 
 ```bash
 sudo su -
+bash /tmp/setup.sh
+```
+
+The script prompts for an admin username and password, generates a secure random JWT secret via Node.js crypto, writes the complete `.env` file, installs `bcryptjs` and `jsonwebtoken`, and restarts the systemd service.
+
+Manual install if needed:
+```bash
 cd /app
 npm install bcryptjs jsonwebtoken
 systemctl restart employee-dir
 systemctl status employee-dir
-```
-
-Add the new variables to `/app/.env`:
-
-```bash
-JWT_SECRET=your-long-random-secret-string-here
-ADMIN_EMAIL=your-admin-email@example.com
 ```
 
 ---
@@ -169,27 +212,44 @@ ADMIN_EMAIL=your-admin-email@example.com
 ## 🧱 Tech Stack
 
 **AWS Infrastructure**
-- VPC, public and private subnets, Internet Gateway, NAT Gateway
-- Application Load Balancer
-- EC2 (Amazon Linux 2023, private subnet, systemd)
-- RDS PostgreSQL 15 (private subnet, KMS encrypted)
-- Secrets Manager with Customer Managed KMS Key
-- IAM least privilege roles and inline policies
-- SSM Session Manager (no SSH)
+- VPC — custom CIDR, 5 subnets across 2 availability zones
+- Application Load Balancer — internet-facing, HTTP:80
+- EC2 t3.micro — Amazon Linux 2023, private subnet, systemd service
+- RDS PostgreSQL 15 — db.t3.micro, gp3 storage, private subnet group
+- Secrets Manager — DB credentials, KMS CMK encrypted
+- KMS CMK — symmetric key, encrypts Secrets Manager and RDS
+- IAM — least privilege inline policies
+- SSM Session Manager — no SSH required
 - VPC Flow Logs → CloudWatch
 
-**Application**
-- Node.js + Express
-- bcryptjs (password hashing)
-- jsonwebtoken (JWT sessions)
-- pg (PostgreSQL driver)
-- @aws-sdk/client-secrets-manager
-- cors, dotenv
+**Backend (Node.js)**
+- Express — REST API framework
+- bcryptjs — password hashing (cost factor 12)
+- jsonwebtoken — JWT signing and verification
+- pg — PostgreSQL driver
+- @aws-sdk/client-secrets-manager — runtime credential fetch
+- cors — cross-origin support
+- dotenv — environment configuration
 
-**Frontend & Deployment**
-- HTML, CSS, JavaScript — mobile-first, no frameworks
-- Vercel CDN with serverless API proxy
-- GitHub — source control and CI/CD
+**Frontend**
+- Vanilla HTML, CSS, JavaScript — no frameworks, mobile-first
+- Typography: Sora (headings) + Plus Jakarta Sans (body)
+- Dark/light mode with localStorage persistence
+- Bottom navigation bar on mobile, pill navigation on desktop
+
+**Deployment**
+- Vercel — global CDN, serverless proxy, security headers
+- GitHub — source control, automatic redeploy on push
+
+---
+
+## 📋 HTTPS Setup (once you have a domain)
+
+1. ACM → Request public certificate → DNS validation → add CNAME to DNS provider
+2. ALB → Add HTTPS listener port 443 → attach ACM certificate → policy `ELBSecurityPolicy-TLS13-1-2-2021-06`
+3. ALB → Update HTTP:80 listener → Redirect to HTTPS 301
+4. DNS provider → A record pointing to ALB
+5. Vercel → update `API_BASE_URL` to `https://yourdomain.com`
 
 ---
 
@@ -197,25 +257,13 @@ ADMIN_EMAIL=your-admin-email@example.com
 
 - [x] EC2 has no public IP address
 - [x] RDS not publicly accessible
-- [x] RDS encrypted with KMS CMK
-- [x] SSM Session Manager access works — no SSH required
-- [x] `/health` returns `{"status":"ok"}` via ALB
+- [x] RDS storage encrypted with KMS CMK
+- [x] SSM Session Manager works — no SSH needed
+- [x] ALB `/health` returns `{"status":"ok"}`
 - [x] Passwords hashed with bcrypt — never stored in plain text
-- [x] JWT tokens expire after 7 days
-- [x] Admin page separate from main app — no navigation link
+- [x] Employee JWT sessions expire after 7 days
+- [x] Admin JWT sessions expire after 8 hours
+- [x] Admin page has no link from the main app
 - [x] `API_BASE_URL` stored as Vercel env var — not in source code
-- [x] Users can only access their own profile data
-
----
-
-## 📋 HTTPS Setup (once you have a domain)
-
-1. Request ACM certificate with DNS validation
-2. Add ALB HTTPS listener on port 443 with ACM certificate
-3. Update ALB HTTP:80 listener to redirect to HTTPS
-4. Point your domain DNS to the ALB
-5. Update Vercel `API_BASE_URL` to `https://yourdomain.com`
-
----
-
-*Built for AltSchool Africa — Cloud Security Track*
+- [x] Users can only read and edit their own profile data
+- [x] Security headers applied to all Vercel responses
