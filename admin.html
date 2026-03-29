@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel — Employee Directory</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@700;800&display=swap" rel="stylesheet">
+<style>
+[data-theme="dark"]{--bg:#080C1A;--bg2:#0F1526;--bg3:#151C35;--border:#1E2845;--text:#EEF0FF;--text2:#7B85C4;--text3:#3D4670;--blue:#4D73FF;--orange:#FF7A4A;--green:#00D98A;--red:#FF5C6A;--card:#0F1526;--shadow:rgba(77,115,255,.15);--shadow2:rgba(0,0,0,.3);}
+[data-theme="light"]{--bg:#F0F4FF;--bg2:#fff;--bg3:#E8EDFF;--border:#D6DEFF;--text:#0D1340;--text2:#4A5280;--text3:#8B93BE;--blue:#2952FF;--orange:#FF6B35;--green:#00C27A;--red:#FF4757;--card:#fff;--shadow:rgba(41,82,255,.12);--shadow2:rgba(13,19,64,.07);}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;transition:background .3s,color .3s;overflow-x:hidden;}
+
+.mesh{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+.b{position:absolute;border-radius:50%;filter:blur(80px);opacity:.15;}
+.b1{width:500px;height:500px;background:radial-gradient(circle,rgba(77,115,255,.5),transparent);top:-200px;right:-200px;}
+.b2{width:350px;height:350px;background:radial-gradient(circle,rgba(255,92,106,.25),transparent);bottom:-100px;left:-100px;}
+[data-theme="light"] .b{opacity:.3;}
+
+/* ── GATE ── */
+.gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;position:relative;z-index:1;}
+.gate-card{background:var(--card);border:1px solid var(--border);border-radius:24px;padding:48px 40px;width:100%;max-width:420px;box-shadow:0 24px 64px var(--shadow);}
+@media(max-width:480px){.gate-card{padding:32px 20px;border-radius:20px;}}
+.gate-icon{font-size:52px;margin-bottom:20px;display:block;text-align:center;}
+.gate-title{font-family:'Sora',sans-serif;font-size:28px;font-weight:800;letter-spacing:-.03em;margin-bottom:6px;text-align:center;}
+.gate-sub{font-size:14px;color:var(--text2);margin-bottom:32px;line-height:1.6;text-align:center;}
+.restricted-chip{display:inline-block;background:rgba(255,92,106,.12);border:1px solid rgba(255,92,106,.25);border-radius:100px;padding:4px 14px;font-size:11px;font-weight:700;color:var(--red);letter-spacing:.1em;text-transform:uppercase;margin-bottom:20px;}
+
+/* FIELD */
+.field{margin-bottom:18px;}
+.field-lbl{display:block;font-size:12px;font-weight:700;color:var(--text2);margin-bottom:7px;letter-spacing:.02em;}
+.fw{position:relative;}
+.fi{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none;}
+.finput{width:100%;background:var(--bg);border:2px solid var(--border);border-radius:12px;padding:14px 14px 14px 42px;font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;color:var(--text);outline:none;transition:all .25s;}
+.finput::placeholder{color:var(--text3);}
+.finput:focus{border-color:var(--blue);background:var(--bg2);box-shadow:0 0 0 4px rgba(77,115,255,.1);}
+
+.btn-login{width:100%;padding:15px;background:linear-gradient(135deg,#FF5C6A,#cc2233);color:#fff;border:none;border-radius:12px;font-family:'Sora',sans-serif;font-size:17px;font-weight:700;cursor:pointer;transition:all .25s;margin-top:4px;}
+.btn-login:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(255,92,106,.3);}
+.btn-login:active{transform:translateY(0);}
+.btn-login:disabled{background:var(--border);color:var(--text3);cursor:not-allowed;transform:none;box-shadow:none;}
+
+.err-box{background:rgba(255,92,106,.1);border:1px solid rgba(255,92,106,.25);border-radius:10px;padding:11px 14px;font-size:13px;color:var(--red);margin-bottom:16px;display:none;line-height:1.5;}
+.err-box.show{display:block;}
+
+.back-link{display:block;text-align:center;margin-top:18px;font-size:13px;color:var(--text3);text-decoration:none;transition:color .2s;}
+.back-link:hover{color:var(--blue);}
+
+/* ── NAV ── */
+.admin-nav{display:none;position:sticky;top:0;z-index:200;background:var(--bg);border-bottom:1px solid var(--border);height:60px;padding:0 32px;align-items:center;justify-content:space-between;backdrop-filter:blur(16px);}
+.admin-nav.visible{display:flex;}
+@media(max-width:480px){.admin-nav{padding:0 16px;}}
+.nav-left{display:flex;align-items:center;gap:12px;}
+.nav-logo{display:flex;align-items:center;gap:8px;}
+.logo-icon{width:32px;height:32px;background:var(--red);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.logo-name{font-family:'Sora',sans-serif;font-size:15px;font-weight:800;color:var(--text);}
+.admin-badge{background:rgba(255,92,106,.12);border:1px solid rgba(255,92,106,.2);border-radius:100px;padding:3px 12px;font-size:10px;font-weight:700;color:var(--red);letter-spacing:.1em;text-transform:uppercase;}
+.nav-right{display:flex;align-items:center;gap:10px;}
+.toggle-btn{width:38px;height:20px;background:var(--bg3);border:2px solid var(--border);border-radius:100px;cursor:pointer;position:relative;transition:background .3s;}
+[data-theme="light"] .toggle-btn{background:var(--blue);border-color:var(--blue);}
+.toggle-btn::after{content:'';position:absolute;top:1px;left:1px;width:14px;height:14px;border-radius:50%;background:var(--text3);transition:transform .3s;}
+[data-theme="light"] .toggle-btn::after{transform:translateX(18px);background:#fff;}
+.btn-signout{padding:7px 14px;background:rgba(255,92,106,.08);color:var(--red);border:1px solid rgba(255,92,106,.2);border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .2s;}
+.btn-signout:hover{background:var(--red);color:#fff;}
+
+/* ── DASHBOARD ── */
+.dash{display:none;position:relative;z-index:1;}
+.dash.visible{display:block;animation:fadeUp .4s ease both;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+.wrap{max-width:1400px;margin:0 auto;padding:40px 32px;}
+@media(max-width:680px){.wrap{padding:24px 16px;}}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:36px;}
+@media(max-width:900px){.stats{grid-template-columns:1fr 1fr;}}
+@media(max-width:480px){.stats{grid-template-columns:1fr 1fr;gap:10px;}}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;position:relative;overflow:hidden;transition:all .25s;}
+.stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--blue),var(--orange));transform:scaleX(0);transform-origin:left;transition:transform .3s;}
+.stat:hover{transform:translateY(-4px);box-shadow:0 12px 32px var(--shadow2);}
+.stat:hover::before{transform:scaleX(1);}
+.stat-icon{font-size:22px;margin-bottom:10px;}
+.stat-num{font-family:'Sora',sans-serif;font-size:36px;font-weight:800;line-height:1;letter-spacing:-.03em;color:var(--blue);margin-bottom:4px;}
+.stat-lbl{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;}
+
+/* TOOLBAR */
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:14px;flex-wrap:wrap;}
+.toolbar-left{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.dash-title{font-family:'Sora',sans-serif;font-size:22px;font-weight:700;letter-spacing:-.02em;}
+.search-wrap{display:flex;align-items:center;gap:8px;background:var(--bg2);border:2px solid var(--border);border-radius:12px;padding:9px 14px;transition:all .25s;width:220px;}
+@media(max-width:500px){.search-wrap{width:100%;}}
+.search-wrap:focus-within{border-color:var(--blue);box-shadow:0 0 0 3px rgba(77,115,255,.1);}
+.search-wrap input{background:none;border:none;outline:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;color:var(--text);width:100%;}
+.search-wrap input::placeholder{color:var(--text3);}
+.btn-add{padding:10px 20px;background:var(--green);color:#080C1A;border:none;border-radius:10px;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.btn-add:hover{filter:brightness(1.1);transform:translateY(-1px);}
+
+/* TABLE */
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:16px;}
+.tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:680px;}
+.tbl th{padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;background:var(--bg3);border-bottom:1px solid var(--border);white-space:nowrap;}
+.tbl td{padding:13px 16px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:var(--bg3);}
+.name-cell{display:flex;align-items:center;gap:10px;}
+.t-av{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--blue),var(--orange));display:flex;align-items:center;justify-content:center;font-family:'Sora',sans-serif;font-size:12px;font-weight:800;color:#fff;flex-shrink:0;}
+.dept-badge{font-size:11px;font-weight:700;color:var(--blue);background:rgba(77,115,255,.1);border-radius:100px;padding:2px 8px;}
+.btn-edit{padding:6px 12px;background:rgba(77,115,255,.1);color:var(--blue);border:1px solid rgba(77,115,255,.2);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;margin-right:6px;font-family:'Plus Jakarta Sans',sans-serif;}
+.btn-edit:hover{background:var(--blue);color:#fff;}
+.btn-del{padding:6px 12px;background:rgba(255,92,106,.08);color:var(--red);border:1px solid rgba(255,92,106,.15);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;font-family:'Plus Jakarta Sans',sans-serif;}
+.btn-del:hover{background:var(--red);color:#fff;}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px;opacity:0;pointer-events:none;transition:opacity .3s;}
+.overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:22px;padding:32px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;transform:translateY(20px) scale(.97);transition:transform .3s cubic-bezier(.34,1.56,.64,1);box-shadow:0 24px 64px rgba(0,0,0,.5);}
+.overlay.open .modal{transform:translateY(0) scale(1);}
+.modal-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.modal-title{font-family:'Sora',sans-serif;font-size:20px;font-weight:700;}
+.btn-close{width:34px;height:34px;background:var(--bg3);border:1px solid var(--border);border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .2s;color:var(--text2);}
+.btn-close:hover{background:var(--red);color:#fff;border-color:var(--red);}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:480px){.field-row{grid-template-columns:1fr;}}
+.btn-save{width:100%;padding:14px;background:linear-gradient(135deg,var(--blue),#1A3FDB);color:#fff;border:none;border-radius:12px;font-family:'Sora',sans-serif;font-size:16px;font-weight:700;cursor:pointer;transition:all .25s;margin-top:6px;}
+.btn-save:hover{transform:translateY(-2px);box-shadow:0 10px 28px var(--shadow);}
+.btn-save:disabled{background:var(--border);color:var(--text3);cursor:not-allowed;transform:none;}
+.btn-cancel{width:100%;padding:12px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:12px;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;margin-top:10px;}
+.btn-cancel:hover{background:var(--border);}
+
+/* TOAST */
+.toast{position:fixed;bottom:28px;right:28px;padding:12px 18px;border-radius:12px;font-size:14px;font-weight:600;opacity:0;transform:translateY(12px) scale(.95);transition:all .3s cubic-bezier(.34,1.56,.64,1);z-index:999;pointer-events:none;max-width:280px;}
+.toast.show{opacity:1;transform:translateY(0) scale(1);}
+.toast.ok{background:var(--green);color:#080C1A;}
+.toast.err{background:var(--red);color:#fff;}
+.toast.warn{background:var(--orange);color:#fff;}
+
+/* mobile tweaks */
+@media(max-width:480px){
+  .stats{grid-template-columns:1fr 1fr;}
+  .stat-num{font-size:28px;}
+}
+</style>
+</head>
+<body>
+
+<div class="mesh"><div class="b b1"></div><div class="b b2"></div></div>
+
+<!-- ══ LOGIN GATE ══ -->
+<div class="gate" id="gatePage">
+  <div class="gate-card">
+    <span class="gate-icon">🔐</span>
+    <div style="text-align:center;margin-bottom:16px;">
+      <span class="restricted-chip">Restricted Access</span>
+    </div>
+    <div class="gate-title">Admin Panel</div>
+    <div class="gate-sub">This page is only accessible to administrators. Enter your admin credentials to continue.</div>
+
+    <div class="err-box" id="gateErr"></div>
+
+    <div class="field">
+      <label class="field-lbl">Username</label>
+      <div class="fw">
+        <span class="fi">👤</span>
+        <input class="finput" id="g-user" type="text" placeholder="Your admin username" autocomplete="username" spellcheck="false"/>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-lbl">Password</label>
+      <div class="fw">
+        <span class="fi">🔒</span>
+        <input class="finput" id="g-pass" type="password" placeholder="Your admin password" autocomplete="current-password"/>
+      </div>
+    </div>
+
+    <button class="btn-login" id="loginBtn" onclick="adminLogin()">Access Admin Panel →</button>
+    <a class="back-link" href="/">← Back to main site</a>
+  </div>
+</div>
+
+<!-- ══ ADMIN NAV ══ -->
+<nav class="admin-nav" id="adminNav">
+  <div class="nav-left">
+    <div class="nav-logo">
+      <div class="logo-icon">🔐</div>
+      <div class="logo-name">Admin Panel</div>
+    </div>
+    <span class="admin-badge">Admin</span>
+  </div>
+  <div class="nav-right">
+    <button class="toggle-btn" onclick="toggleTheme()" aria-label="Toggle theme"></button>
+    <button class="btn-signout" onclick="signOut()">Sign Out</button>
+  </div>
+</nav>
+
+<!-- ══ ADMIN DASHBOARD ══ -->
+<div class="dash" id="adminDash">
+  <div class="wrap">
+
+    <div class="stats">
+      <div class="stat"><div class="stat-icon">👥</div><div class="stat-num" id="st-total">0</div><div class="stat-lbl">Employees</div></div>
+      <div class="stat"><div class="stat-icon">🏢</div><div class="stat-num" id="st-dept">0</div><div class="stat-lbl">Departments</div></div>
+      <div class="stat"><div class="stat-icon">💼</div><div class="stat-num" id="st-roles">0</div><div class="stat-lbl">Roles</div></div>
+      <div class="stat"><div class="stat-icon">🔒</div><div class="stat-num">8h</div><div class="stat-lbl">Session</div></div>
+    </div>
+
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="dash-title">All Employees</div>
+        <div class="search-wrap">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="color:var(--text3);flex-shrink:0"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="adminSearch" placeholder="Search…" oninput="filterAdmin()"/>
+        </div>
+      </div>
+      <button class="btn-add" onclick="openAdd()">+ Add Employee</button>
+    </div>
+
+    <div class="table-wrap">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Department</th>
+            <th>Role</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Start Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr><td colspan="8" style="text-align:center;padding:48px;color:var(--text3);">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ EDIT / ADD MODAL ══ -->
+<div class="overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-top">
+      <div class="modal-title" id="modal-title">Add Employee</div>
+      <button class="btn-close" onclick="closeModal()">✕</button>
+    </div>
+    <input type="hidden" id="m-id"/>
+    <div class="field-row">
+      <div class="field"><label class="field-lbl">Full Name *</label><div class="fw"><span class="fi">👤</span><input class="finput" id="m-name" type="text" placeholder="Jade Fox"/></div></div>
+      <div class="field"><label class="field-lbl">Department</label><div class="fw"><span class="fi">🏢</span><input class="finput" id="m-dept" type="text" placeholder="Engineering"/></div></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label class="field-lbl">Role</label><div class="fw"><span class="fi">💼</span><input class="finput" id="m-role" type="text" placeholder="Cloud Engineer"/></div></div>
+      <div class="field"><label class="field-lbl">Email *</label><div class="fw"><span class="fi">✉️</span><input class="finput" id="m-email" type="email" placeholder="jade@company.com"/></div></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label class="field-lbl">Phone</label><div class="fw"><span class="fi">📞</span><input class="finput" id="m-phone" type="tel" placeholder="+234 800 000 0000"/></div></div>
+      <div class="field"><label class="field-lbl">Date of Birth</label><div class="fw"><span class="fi">🎂</span><input class="finput" id="m-dob" type="date"/></div></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label class="field-lbl">Start Date</label><div class="fw"><span class="fi">📅</span><input class="finput" id="m-start" type="date"/></div></div>
+      <div class="field"></div>
+    </div>
+    <div class="field"><label class="field-lbl">Address</label><div class="fw"><span class="fi">📍</span><input class="finput" id="m-address" type="text" placeholder="123 Main St, Lagos"/></div></div>
+    <div class="field"><label class="field-lbl">Emergency Contact</label><div class="fw"><span class="fi">🆘</span><input class="finput" id="m-emerg" type="text" placeholder="Jane Fox — +234 800 000 0001"/></div></div>
+    <button class="btn-save" id="saveBtn" onclick="saveEmployee()">Save</button>
+    <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let adminToken = null;
+let employees  = [];
+let isEdit     = false;
+
+// ── RESTORE SESSION ──
+const saved = localStorage.getItem('adminToken');
+if (saved) {
+  try {
+    const p = JSON.parse(atob(saved.split('.')[1]));
+    if (p.exp > Date.now() / 1000 && p.is_admin) {
+      adminToken = saved;
+      showDash();
+    }
+  } catch { localStorage.removeItem('adminToken'); }
+}
+
+// ── THEME ──
+function toggleTheme() {
+  const h = document.documentElement;
+  const n = h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  h.setAttribute('data-theme', n);
+  localStorage.setItem('adminTheme', n);
+}
+const t = localStorage.getItem('adminTheme');
+if (t) document.documentElement.setAttribute('data-theme', t);
+
+// ── LOGIN ──
+async function adminLogin() {
+  const errEl = document.getElementById('gateErr');
+  errEl.classList.remove('show');
+
+  const username = document.getElementById('g-user').value.trim();
+  const password = document.getElementById('g-pass').value;
+
+  if (!username || !password) {
+    errEl.textContent = 'Please enter your username and password';
+    errEl.classList.add('show');
+    return;
+  }
+
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true;
+  btn.textContent = 'Checking credentials…';
+
+  try {
+    const r = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+
+    const data = await r.json();
+
+    if (!r.ok) {
+      errEl.textContent = data.error || 'Incorrect username or password';
+      errEl.classList.add('show');
+      return;
+    }
+
+    adminToken = data.token;
+    localStorage.setItem('adminToken', adminToken);
+    showDash();
+
+  } catch {
+    errEl.textContent = 'Connection failed — check your internet and try again';
+    errEl.classList.add('show');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Access Admin Panel →';
+  }
+}
+
+function showDash() {
+  document.getElementById('gatePage').style.display  = 'none';
+  document.getElementById('adminNav').classList.add('visible');
+  document.getElementById('adminDash').classList.add('visible');
+  loadEmployees();
+}
+
+function signOut() {
+  adminToken = null;
+  localStorage.removeItem('adminToken');
+  document.getElementById('gatePage').style.display = 'flex';
+  document.getElementById('adminNav').classList.remove('visible');
+  document.getElementById('adminDash').classList.remove('visible');
+  document.getElementById('g-user').value = '';
+  document.getElementById('g-pass').value = '';
+}
+
+// ── HELPERS ──
+function authH() {
+  return { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' };
+}
+
+function initials(n = '') {
+  return n.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
+}
+
+function fmt(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function toast(msg, type = 'ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast ${type} show`;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.className = 'toast', 3200);
+}
+
+function updateStats(list) {
+  document.getElementById('st-total').textContent = list.length;
+  document.getElementById('st-dept').textContent  = new Set(list.map(e => e.department).filter(Boolean)).size;
+  document.getElementById('st-roles').textContent = new Set(list.map(e => e.role).filter(Boolean)).size;
+}
+
+// ── LOAD ──
+async function loadEmployees() {
+  try {
+    const r = await fetch('/api/admin/employees', { headers: authH() });
+    if (r.status === 401 || r.status === 403) { signOut(); return; }
+    employees = await r.json();
+    renderTable(employees);
+    updateStats(employees);
+  } catch { toast('Failed to load employees', 'err'); }
+}
+
+function renderTable(list) {
+  const tbody = document.getElementById('tbody');
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:48px;color:var(--text3)">No employees found.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(e => `
+    <tr>
+      <td style="font-family:'Sora',sans-serif;color:var(--text3);font-size:12px;">#${String(e.id).padStart(3,'0')}</td>
+      <td>
+        <div class="name-cell">
+          <div class="t-av">${initials(e.name)}</div>
+          <span style="font-weight:700;color:var(--text);">${e.name}</span>
+        </div>
+      </td>
+      <td>${e.department ? `<span class="dept-badge">${e.department}</span>` : '<span style="color:var(--text3)">—</span>'}</td>
+      <td>${e.role || '<span style="color:var(--text3)">—</span>'}</td>
+      <td style="font-size:13px;">${e.email || '—'}</td>
+      <td style="font-size:13px;">${e.phone || '—'}</td>
+      <td style="font-size:13px;">${fmt(e.start_date)}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn-edit" onclick='openEdit(${JSON.stringify(e)})'>Edit</button>
+        <button class="btn-del"  onclick="deleteEmp(${e.id},'${e.name.replace(/'/g,"\\'")}')">Delete</button>
+      </td>
+    </tr>`).join('');
+}
+
+function filterAdmin() {
+  const q = document.getElementById('adminSearch').value.toLowerCase();
+  renderTable(employees.filter(e =>
+    [e.name, e.role, e.email, e.department].some(v => (v || '').toLowerCase().includes(q))
+  ));
+}
+
+// ── MODAL ──
+function openAdd() {
+  isEdit = false;
+  document.getElementById('modal-title').textContent = 'Add Employee';
+  document.getElementById('m-id').value = '';
+  ['m-name','m-dept','m-role','m-email','m-phone','m-dob','m-start','m-address','m-emerg']
+    .forEach(id => document.getElementById(id).value = '');
+  document.getElementById('saveBtn').textContent = 'Add Employee';
+  document.getElementById('modal').classList.add('open');
+}
+
+function openEdit(e) {
+  isEdit = true;
+  document.getElementById('modal-title').textContent = 'Edit Employee';
+  document.getElementById('m-id').value      = e.id;
+  document.getElementById('m-name').value    = e.name          || '';
+  document.getElementById('m-dept').value    = e.department    || '';
+  document.getElementById('m-role').value    = e.role          || '';
+  document.getElementById('m-email').value   = e.email         || '';
+  document.getElementById('m-phone').value   = e.phone         || '';
+  document.getElementById('m-dob').value     = e.dob           ? e.dob.slice(0,10)        : '';
+  document.getElementById('m-start').value   = e.start_date    ? e.start_date.slice(0,10) : '';
+  document.getElementById('m-address').value = e.address       || '';
+  document.getElementById('m-emerg').value   = e.emergency_contact || '';
+  document.getElementById('saveBtn').textContent = 'Save Changes';
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+
+async function saveEmployee() {
+  const get = id => document.getElementById(id).value.trim();
+  const name = get('m-name'), email = get('m-email');
+  if (!name || !email) { toast('Name and email are required', 'err'); return; }
+
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  const body = {
+    name, email,
+    role:               get('m-role')    || null,
+    department:         get('m-dept')    || null,
+    phone:              get('m-phone')   || null,
+    dob:                get('m-dob')     || null,
+    start_date:         get('m-start')   || null,
+    address:            get('m-address') || null,
+    emergency_contact:  get('m-emerg')   || null
+  };
+
+  try {
+    const id  = document.getElementById('m-id').value;
+    const url = isEdit ? `/api/admin/employees/${id}` : '/api/admin/employees';
+    const r   = await fetch(url, {
+      method: isEdit ? 'PUT' : 'POST',
+      headers: authH(),
+      body: JSON.stringify(body)
+    });
+    const data = await r.json();
+    if (!r.ok) { toast(data.error || 'Save failed', 'err'); return; }
+    toast(isEdit ? `${name} updated ✅` : `${name} added 🎉`);
+    closeModal();
+    await loadEmployees();
+  } catch {
+    toast('Save failed — check your connection', 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = isEdit ? 'Save Changes' : 'Add Employee';
+  }
+}
+
+async function deleteEmp(id, name) {
+  if (!confirm(`Delete ${name}? This cannot be undone.`)) return;
+  try {
+    const r = await fetch(`/api/admin/employees/${id}`, {
+      method: 'DELETE', headers: authH()
+    });
+    if (!r.ok) throw new Error();
+    toast(`${name} deleted`, 'warn');
+    await loadEmployees();
+  } catch { toast('Delete failed', 'err'); }
+}
+
+// Enter key on login form
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !adminToken) adminLogin();
+});
+</script>
+</body>
+</html>

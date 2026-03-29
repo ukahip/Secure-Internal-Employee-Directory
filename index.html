@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Employee Directory — Sign In</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@700;800&display=swap" rel="stylesheet">
+<style>
+[data-theme="light"]{--bg:#F0F4FF;--card:#fff;--border:#D6DEFF;--text:#0D1340;--text2:#4A5280;--text3:#8B93BE;--blue:#2952FF;--orange:#FF6B35;--green:#00C27A;--red:#FF4757;--shadow:rgba(41,82,255,.12);}
+[data-theme="dark"]{--bg:#080C1A;--card:#0F1526;--border:#1E2845;--text:#EEF0FF;--text2:#7B85C4;--text3:#3D4670;--blue:#4D73FF;--orange:#FF7A4A;--green:#00D98A;--red:#FF5C6A;--shadow:rgba(77,115,255,.15);}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased;transition:background .3s,color .3s;}
+
+/* mesh */
+.mesh{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+.b{position:absolute;border-radius:50%;filter:blur(80px);opacity:.3;}
+.b1{width:500px;height:500px;background:radial-gradient(circle,rgba(41,82,255,.35),transparent);top:-200px;right:-200px;}
+.b2{width:400px;height:400px;background:radial-gradient(circle,rgba(255,107,53,.2),transparent);bottom:-100px;left:-100px;}
+[data-theme="dark"] .b{opacity:.15;}
+
+/* layout */
+.page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;position:relative;z-index:1;}
+
+/* logo bar */
+.top-bar{position:fixed;top:0;left:0;right:0;z-index:100;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.logo-icon{width:34px;height:34px;background:var(--blue);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;}
+.logo-name{font-family:'Sora',sans-serif;font-size:15px;font-weight:800;color:var(--text);}
+.logo-name span{color:var(--blue);}
+.toggle-btn{width:40px;height:22px;background:var(--border);border:none;border-radius:100px;cursor:pointer;position:relative;transition:background .3s;}
+[data-theme="dark"] .toggle-btn{background:var(--blue);}
+.toggle-btn::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--text3);transition:transform .3s;}
+[data-theme="dark"] .toggle-btn::after{transform:translateX(18px);background:#fff;}
+
+/* card */
+.auth-card{background:var(--card);border:1px solid var(--border);border-radius:24px;padding:40px 36px;width:100%;max-width:460px;box-shadow:0 16px 48px var(--shadow);}
+@media(max-width:480px){.auth-card{padding:32px 24px;border-radius:20px;}}
+
+.card-icon{font-size:40px;margin-bottom:16px;}
+.card-title{font-family:'Sora',sans-serif;font-size:28px;font-weight:800;letter-spacing:-.03em;margin-bottom:6px;}
+.card-sub{font-size:14px;color:var(--text2);margin-bottom:32px;line-height:1.6;}
+
+/* tabs */
+.tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:4px;margin-bottom:28px;gap:4px;}
+.tab{padding:10px;border-radius:10px;font-size:14px;font-weight:700;border:none;background:none;cursor:pointer;color:var(--text2);transition:all .2s;font-family:'Plus Jakarta Sans',sans-serif;}
+.tab.active{background:var(--blue);color:#fff;box-shadow:0 4px 12px var(--shadow);}
+
+/* forms */
+.form{display:none;}
+.form.active{display:block;}
+.field{margin-bottom:18px;}
+.field-lbl{display:block;font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px;letter-spacing:.02em;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:400px){.field-row{grid-template-columns:1fr;}}
+.input-wrap{position:relative;}
+.fi{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none;}
+.input{width:100%;background:var(--bg);border:2px solid var(--border);border-radius:12px;padding:13px 14px 13px 40px;font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;color:var(--text);outline:none;transition:all .25s;}
+.input::placeholder{color:var(--text3);}
+.input:focus{border-color:var(--blue);background:var(--card);box-shadow:0 0 0 4px rgba(41,82,255,.08);}
+.input.err{border-color:var(--red);}
+.field-hint{font-size:11px;color:var(--text3);margin-top:4px;}
+
+.btn{width:100%;padding:15px;background:linear-gradient(135deg,var(--blue),#1A3FDB);color:#fff;border:none;border-radius:12px;font-family:'Sora',sans-serif;font-size:16px;font-weight:700;cursor:pointer;transition:all .25s;margin-top:4px;}
+.btn:hover{transform:translateY(-2px);box-shadow:0 10px 28px var(--shadow);}
+.btn:active{transform:translateY(0);}
+.btn:disabled{background:var(--border);color:var(--text3);cursor:not-allowed;transform:none;box-shadow:none;}
+
+.divider{display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--text3);font-size:13px;}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border);}
+
+.err-msg{background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.2);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--red);margin-bottom:16px;display:none;}
+.err-msg.show{display:block;}
+.ok-msg{background:rgba(0,194,122,.08);border:1px solid rgba(0,194,122,.2);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--green);margin-bottom:16px;display:none;}
+.ok-msg.show{display:block;}
+
+.opt-toggle{text-align:center;margin-top:12px;}
+.opt-toggle button{background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;padding:4px;}
+.opt-toggle button:hover{color:var(--blue);}
+.optional-fields{display:none;margin-top:4px;}
+.optional-fields.show{display:block;}
+</style>
+</head>
+<body>
+
+<div class="mesh"><div class="b b1"></div><div class="b b2"></div></div>
+
+<div class="top-bar">
+  <a class="logo" href="/">
+    <div class="logo-icon">🏢</div>
+    <div class="logo-name">Employee <span>Dir.</span></div>
+  </a>
+  <button class="toggle-btn" onclick="toggleTheme()" aria-label="Toggle theme"></button>
+</div>
+
+<div class="page">
+  <div class="auth-card">
+    <div class="card-icon">👋</div>
+    <div class="card-title">Welcome</div>
+    <div class="card-sub">Sign in to access your employee profile, or create a new account.</div>
+
+    <div class="tabs">
+      <button class="tab active" id="tab-login" onclick="switchTab('login')">Sign In</button>
+      <button class="tab" id="tab-register" onclick="switchTab('register')">Register</button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <div class="form active" id="form-login">
+      <div class="err-msg" id="login-err"></div>
+      <div class="field">
+        <label class="field-lbl">Email Address</label>
+        <div class="input-wrap"><span class="fi">✉️</span><input class="input" id="l-email" type="email" placeholder="your@email.com" autocomplete="email"/></div>
+      </div>
+      <div class="field">
+        <label class="field-lbl">Password</label>
+        <div class="input-wrap"><span class="fi">🔒</span><input class="input" id="l-pass" type="password" placeholder="Your password" autocomplete="current-password"/></div>
+      </div>
+      <button class="btn" id="loginBtn" onclick="login()">Sign In →</button>
+    </div>
+
+    <!-- REGISTER FORM -->
+    <div class="form" id="form-register">
+      <div class="err-msg" id="reg-err"></div>
+      <div class="ok-msg" id="reg-ok"></div>
+      <div class="field">
+        <label class="field-lbl">Full Name *</label>
+        <div class="input-wrap"><span class="fi">👤</span><input class="input" id="r-name" type="text" placeholder="e.g. Jade Fox" autocomplete="name"/></div>
+      </div>
+      <div class="field">
+        <label class="field-lbl">Work Email *</label>
+        <div class="input-wrap"><span class="fi">✉️</span><input class="input" id="r-email" type="email" placeholder="your@company.com" autocomplete="email"/></div>
+      </div>
+      <div class="field">
+        <label class="field-lbl">Password *</label>
+        <div class="input-wrap"><span class="fi">🔒</span><input class="input" id="r-pass" type="password" placeholder="Min. 6 characters" autocomplete="new-password"/></div>
+        <div class="field-hint">Minimum 6 characters</div>
+      </div>
+      <div class="field">
+        <label class="field-lbl">Confirm Password *</label>
+        <div class="input-wrap"><span class="fi">🔒</span><input class="input" id="r-pass2" type="password" placeholder="Repeat password" autocomplete="new-password"/></div>
+      </div>
+
+      <div class="opt-toggle">
+        <button onclick="toggleOptional()">+ Add optional details (role, department, phone)</button>
+      </div>
+      <div class="optional-fields" id="optFields">
+        <div class="field-row" style="margin-top:14px;">
+          <div class="field">
+            <label class="field-lbl">Job Role</label>
+            <div class="input-wrap"><span class="fi">💼</span><input class="input" id="r-role" type="text" placeholder="Cloud Engineer"/></div>
+          </div>
+          <div class="field">
+            <label class="field-lbl">Department</label>
+            <div class="input-wrap"><span class="fi">🏢</span><input class="input" id="r-dept" type="text" placeholder="Engineering"/></div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-lbl">Phone</label>
+          <div class="input-wrap"><span class="fi">📞</span><input class="input" id="r-phone" type="tel" placeholder="+234 800 000 0000"/></div>
+        </div>
+      </div>
+
+      <button class="btn" id="regBtn" onclick="register()" style="margin-top:18px;">Create Account →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Redirect if already logged in
+const existing = localStorage.getItem('token');
+if (existing) {
+  try {
+    const payload = JSON.parse(atob(existing.split('.')[1]));
+    if (payload.exp > Date.now() / 1000) {
+      window.location.href = payload.is_admin ? '/admin' : '/app';
+    }
+  } catch {}
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab,.form').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('form-' + tab).classList.add('active');
+}
+
+function toggleOptional() {
+  const el = document.getElementById('optFields');
+  el.classList.toggle('show');
+}
+
+function toggleTheme() {
+  const h = document.documentElement;
+  const next = h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  h.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+}
+const saved = localStorage.getItem('theme');
+if (saved) document.documentElement.setAttribute('data-theme', saved);
+
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add('show');
+}
+function hideErr(id) { document.getElementById(id).classList.remove('show'); }
+
+async function login() {
+  hideErr('login-err');
+  const email = document.getElementById('l-email').value.trim();
+  const password = document.getElementById('l-pass').value;
+  if (!email || !password) { showErr('login-err', 'Please enter your email and password'); return; }
+
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.textContent = 'Signing in…';
+
+  try {
+    const r = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await r.json();
+    if (!r.ok) { showErr('login-err', data.error || 'Login failed'); return; }
+
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('is_admin', data.is_admin);
+    window.location.href = data.is_admin ? '/admin' : '/app';
+  } catch {
+    showErr('login-err', 'Connection failed. Please try again.');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Sign In →';
+  }
+}
+
+async function register() {
+  hideErr('reg-err');
+  const name = document.getElementById('r-name').value.trim();
+  const email = document.getElementById('r-email').value.trim();
+  const pass = document.getElementById('r-pass').value;
+  const pass2 = document.getElementById('r-pass2').value;
+
+  if (!name || !email || !pass) { showErr('reg-err', 'Name, email and password are required'); return; }
+  if (pass !== pass2) { showErr('reg-err', 'Passwords do not match'); return; }
+  if (pass.length < 6) { showErr('reg-err', 'Password must be at least 6 characters'); return; }
+
+  const btn = document.getElementById('regBtn');
+  btn.disabled = true; btn.textContent = 'Creating account…';
+
+  try {
+    const r = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name, email, password: pass,
+        role: document.getElementById('r-role')?.value.trim() || null,
+        department: document.getElementById('r-dept')?.value.trim() || null,
+        phone: document.getElementById('r-phone')?.value.trim() || null
+      })
+    });
+    const data = await r.json();
+    if (!r.ok) { showErr('reg-err', data.error || 'Registration failed'); return; }
+
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('is_admin', data.is_admin);
+    window.location.href = data.is_admin ? '/admin' : '/app';
+  } catch {
+    showErr('reg-err', 'Connection failed. Please try again.');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Create Account →';
+  }
+}
+
+// Enter key support
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const active = document.querySelector('.form.active').id;
+    if (active === 'form-login') login();
+    else register();
+  }
+});
+</script>
+</body>
+</html>
