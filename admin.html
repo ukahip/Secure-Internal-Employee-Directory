@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin Panel — Employee Directory</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@700;800&display=swap" rel="stylesheet">
+<!-- SECURITY FIX: Add DOMPurify for XSS protection -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 <style>
 [data-theme="dark"]{--bg:#080C1A;--bg2:#0F1526;--bg3:#151C35;--border:#1E2845;--text:#EEF0FF;--text2:#7B85C4;--text3:#3D4670;--blue:#4D73FF;--orange:#FF7A4A;--green:#00D98A;--red:#FF5C6A;--card:#0F1526;--shadow:rgba(77,115,255,.15);--shadow2:rgba(0,0,0,.3);}
 [data-theme="light"]{--bg:#F0F4FF;--bg2:#fff;--bg3:#E8EDFF;--border:#D6DEFF;--text:#0D1340;--text2:#4A5280;--text3:#8B93BE;--blue:#2952FF;--orange:#FF6B35;--green:#00C27A;--red:#FF4757;--card:#fff;--shadow:rgba(41,82,255,.12);--shadow2:rgba(13,19,64,.07);}
@@ -48,7 +50,7 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
 .back-link:hover{color:var(--blue);}
 
 /* ── NAV ── */
-.admin-nav{display:none;position:sticky;top:0;z-index:200;background:var(--bg);border-bottom:1px solid var(--border);height:60px;padding:0 32px;align-items:center;justify-content:space-between;backdrop-filter:blur(16px);}
+.admin-nav{display:none;position:sticky;top:0;z-index:200;background:var(--bg);border-bottom:1px solid var(--border);height:60px;padding:0 32px;align-items:center;justify-content:space-between;;-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);}
 .admin-nav.visible{display:flex;}
 @media(max-width:480px){.admin-nav{padding:0 16px;}}
 .nav-left{display:flex;align-items:center;gap:12px;}
@@ -111,7 +113,7 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
 .btn-del:hover{background:var(--red);color:#fff;}
 
 /* MODAL */
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px;opacity:0;pointer-events:none;transition:opacity .3s;}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px;opacity:0;pointer-events:none;transition:opacity .3s;;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);}
 .overlay.open{opacity:1;pointer-events:all;}
 .modal{background:var(--bg2);border:1px solid var(--border);border-radius:22px;padding:32px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;transform:translateY(20px) scale(.97);transition:transform .3s cubic-bezier(.34,1.56,.64,1);box-shadow:0 24px 64px rgba(0,0,0,.5);}
 .overlay.open .modal{transform:translateY(0) scale(1);}
@@ -139,7 +141,15 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
   .stats{grid-template-columns:1fr 1fr;}
   .stat-num{font-size:28px;}
 }
+.empty-state{text-align:center;padding:48px;color:var(--text3);}
+/* Inline style fixes */
+.td-empty{text-align:center;padding:48px;color:var(--text3);}
+.td-id{font-family:'Sora',sans-serif;color:var(--text3);font-size:12px;}
+.td-small{font-size:13px;}
+.td-actions{white-space:nowrap;}
+.td-name{font-weight:700;color:var(--text);}
 </style>
+<base target="_blank">
 </head>
 <body>
 
@@ -161,7 +171,7 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
       <label class="field-lbl">Username</label>
       <div class="fw">
         <span class="fi">👤</span>
-        <input class="finput" id="g-user" type="text" placeholder="Your admin username" autocomplete="username" spellcheck="false"/>
+        <input class="finput" id="g-user" type="text" placeholder="Your admin username" autocomplete="username" spellcheck="false"/ aria-label="G User">
       </div>
     </div>
 
@@ -169,7 +179,7 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
       <label class="field-lbl">Password</label>
       <div class="fw">
         <span class="fi">🔒</span>
-        <input class="finput" id="g-pass" type="password" placeholder="Your admin password" autocomplete="current-password"/>
+        <input class="finput" id="g-pass" type="password" placeholder="Your admin password" autocomplete="current-password"/ aria-label="G Pass">
       </div>
     </div>
 
@@ -209,7 +219,7 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
         <div class="dash-title">All Employees</div>
         <div class="search-wrap">
           <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="color:var(--text3);flex-shrink:0"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input type="text" id="adminSearch" placeholder="Search…" oninput="filterAdmin()"/>
+          <input type="text" id="adminSearch" placeholder="Search…" oninput="filterAdmin()"/ aria-label="Adminsearch">
         </div>
       </div>
       <button class="btn-add" onclick="openAdd()">+ Add Employee</button>
@@ -245,25 +255,25 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
       <div class="modal-title" id="modal-title">Add Employee</div>
       <button class="btn-close" onclick="closeModal()">✕</button>
     </div>
-    <input type="hidden" id="m-id"/>
+    <input type="hidden" id="m-id" aria-label="M Id" />
     <div class="field-row">
-      <div class="field"><label class="field-lbl">Full Name *</label><div class="fw"><span class="fi">👤</span><input class="finput" id="m-name" type="text" placeholder="Jade Fox"/></div></div>
-      <div class="field"><label class="field-lbl">Department</label><div class="fw"><span class="fi">🏢</span><input class="finput" id="m-dept" type="text" placeholder="Engineering"/></div></div>
+      <div class="field"><label class="field-lbl">Full Name *</label><div class="fw"><span class="fi">👤</span><input class="finput" id="m-name" type="text" placeholder="Jade Fox"/ aria-label="M Name"></div></div>
+      <div class="field"><label class="field-lbl">Department</label><div class="fw"><span class="fi">🏢</span><input class="finput" id="m-dept" type="text" placeholder="Engineering"/ aria-label="M Dept"></div></div>
     </div>
     <div class="field-row">
-      <div class="field"><label class="field-lbl">Role</label><div class="fw"><span class="fi">💼</span><input class="finput" id="m-role" type="text" placeholder="Cloud Engineer"/></div></div>
-      <div class="field"><label class="field-lbl">Email *</label><div class="fw"><span class="fi">✉️</span><input class="finput" id="m-email" type="email" placeholder="jade@company.com"/></div></div>
+      <div class="field"><label class="field-lbl">Role</label><div class="fw"><span class="fi">💼</span><input class="finput" id="m-role" type="text" placeholder="Cloud Engineer"/ aria-label="M Role"></div></div>
+      <div class="field"><label class="field-lbl">Email *</label><div class="fw"><span class="fi">✉️</span><input class="finput" id="m-email" type="email" placeholder="jade@company.com"/ aria-label="M Email"></div></div>
     </div>
     <div class="field-row">
-      <div class="field"><label class="field-lbl">Phone</label><div class="fw"><span class="fi">📞</span><input class="finput" id="m-phone" type="tel" placeholder="+234 800 000 0000"/></div></div>
-      <div class="field"><label class="field-lbl">Date of Birth</label><div class="fw"><span class="fi">🎂</span><input class="finput" id="m-dob" type="date"/></div></div>
+      <div class="field"><label class="field-lbl">Phone</label><div class="fw"><span class="fi">📞</span><input class="finput" id="m-phone" type="tel" placeholder="+234 800 000 0000"/ aria-label="M Phone"></div></div>
+      <div class="field"><label class="field-lbl">Date of Birth</label><div class="fw"><span class="fi">🎂</span><input class="finput" id="m-dob" type="date" aria-label="M Dob" /></div></div>
     </div>
     <div class="field-row">
-      <div class="field"><label class="field-lbl">Start Date</label><div class="fw"><span class="fi">📅</span><input class="finput" id="m-start" type="date"/></div></div>
+      <div class="field"><label class="field-lbl">Start Date</label><div class="fw"><span class="fi">📅</span><input class="finput" id="m-start" type="date" aria-label="M Start" /></div></div>
       <div class="field"></div>
     </div>
-    <div class="field"><label class="field-lbl">Address</label><div class="fw"><span class="fi">📍</span><input class="finput" id="m-address" type="text" placeholder="123 Main St, Lagos"/></div></div>
-    <div class="field"><label class="field-lbl">Emergency Contact</label><div class="fw"><span class="fi">🆘</span><input class="finput" id="m-emerg" type="text" placeholder="Jane Fox — +234 800 000 0001"/></div></div>
+    <div class="field"><label class="field-lbl">Address</label><div class="fw"><span class="fi">📍</span><input class="finput" id="m-address" type="text" placeholder="123 Main St, Lagos"/ aria-label="M Address"></div></div>
+    <div class="field"><label class="field-lbl">Emergency Contact</label><div class="fw"><span class="fi">🆘</span><input class="finput" id="m-emerg" type="text" placeholder="Jane Fox — +234 800 000 0001"/ aria-label="M Emerg"></div></div>
     <button class="btn-save" id="saveBtn" onclick="saveEmployee()">Save</button>
     <button class="btn-cancel" onclick="closeModal()">Cancel</button>
   </div>
@@ -320,6 +330,7 @@ async function adminLogin() {
     const r = await fetch('/api/admin/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ username, password })
     });
 
@@ -392,7 +403,7 @@ function updateStats(list) {
 // ── LOAD ──
 async function loadEmployees() {
   try {
-    const r = await fetch('/api/admin/employees', { headers: authH() });
+    const r = await fetch('/api/admin/employees', { headers: authH(), credentials: 'include' });
     if (r.status === 401 || r.status === 403) { signOut(); return; }
     employees = await r.json();
     renderTable(employees);
@@ -403,24 +414,24 @@ async function loadEmployees() {
 function renderTable(list) {
   const tbody = document.getElementById('tbody');
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:48px;color:var(--text3)">No employees found.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="empty-state">No employees found.</td></tr>`;
     return;
   }
   tbody.innerHTML = list.map(e => `
     <tr>
-      <td style="font-family:'Sora',sans-serif;color:var(--text3);font-size:12px;">#${String(e.id).padStart(3,'0')}</td>
+      <td class="td-id">#${String(e.id).padStart(3,'0')}</td>
       <td>
         <div class="name-cell">
           <div class="t-av">${initials(e.name)}</div>
-          <span style="font-weight:700;color:var(--text);">${e.name}</span>
+          <span class="td-name">${e.name}</span>
         </div>
       </td>
       <td>${e.department ? `<span class="dept-badge">${e.department}</span>` : '<span style="color:var(--text3)">—</span>'}</td>
       <td>${e.role || '<span style="color:var(--text3)">—</span>'}</td>
-      <td style="font-size:13px;">${e.email || '—'}</td>
-      <td style="font-size:13px;">${e.phone || '—'}</td>
-      <td style="font-size:13px;">${fmt(e.start_date)}</td>
-      <td style="white-space:nowrap;">
+      <td class="td-small">${e.email || '—'}</td>
+      <td class="td-small">${e.phone || '—'}</td>
+      <td class="td-small">${fmt(e.start_date)}</td>
+      <td class="td-actions">
         <button class="btn-edit" onclick='openEdit(${JSON.stringify(e)})'>Edit</button>
         <button class="btn-del"  onclick="deleteEmp(${e.id},'${e.name.replace(/'/g,"\\'")}')">Delete</button>
       </td>
@@ -491,6 +502,7 @@ async function saveEmployee() {
     const r   = await fetch(url, {
       method: isEdit ? 'PUT' : 'POST',
       headers: authH(),
+      credentials: 'include',
       body: JSON.stringify(body)
     });
     const data = await r.json();
@@ -510,7 +522,7 @@ async function deleteEmp(id, name) {
   if (!confirm(`Delete ${name}? This cannot be undone.`)) return;
   try {
     const r = await fetch(`/api/admin/employees/${id}`, {
-      method: 'DELETE', headers: authH()
+      method: 'DELETE', headers: authH(), credentials: 'include'
     });
     if (!r.ok) throw new Error();
     toast(`${name} deleted`, 'warn');
