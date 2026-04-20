@@ -2,7 +2,7 @@
   "rewrites": [
     { "source": "/app", "destination": "/app.html" },
     { "source": "/admin", "destination": "/admin.html" },
-    { "source": "/api/(.*)", "destination": "/api/proxy?path=$1" }
+    { "source": "/api/(.*)", "destination": "/api/proxy?path=/api/$1" }
   ],
   "headers": [
     {
