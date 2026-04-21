@@ -48,7 +48,7 @@ export default async function handler(req, res) {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera()');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=()');
 
   const csp = [
     "default-src 'self'",
@@ -128,7 +128,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid URL construction', detail: urlErr.message });
   }
 
-  console.log(`[Proxy] ${req.method} ${path} → ${targetUrl.toString()}`);
+  console.log(`[Proxy] ${req.method} ${path} -> ${targetUrl.toString()}`);
 
   // ── Collect body explicitly (robust for Vercel) ──
   let bodyBuffer = Buffer.alloc(0);
