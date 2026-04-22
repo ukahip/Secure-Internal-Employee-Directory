@@ -11,20 +11,25 @@ const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 500;
 
 // ── In-memory rate limiting (use Redis in production) ──
+// Map<clientId, number[]> — stores array of request timestamps per client
 const requestCounts = new Map();
 
 function checkRateLimit(clientId) {
   const now = Date.now();
   const windowStart = now - RATE_LIMIT_WINDOW;
 
-  for (const [key, timestamp] of requestCounts.entries()) {
-    if (timestamp < windowStart) requestCounts.delete(key);
+  // Prune expired timestamps for all clients
+  for (const [key, timestamps] of requestCounts.entries()) {
+    const recent = timestamps.filter(t => t > windowStart);
+    if (recent.length === 0) requestCounts.delete(key);
+    else requestCounts.set(key, recent);
   }
 
-  const count = Array.from(requestCounts.values()).filter(t => t > windowStart && requestCounts.get(clientId) === t).length;
-  if (count >= MAX_REQUESTS_PER_WINDOW) return false;
+  const clientTimestamps = requestCounts.get(clientId) || [];
+  if (clientTimestamps.length >= MAX_REQUESTS_PER_WINDOW) return false;
 
-  requestCounts.set(clientId, now);
+  clientTimestamps.push(now);
+  requestCounts.set(clientId, clientTimestamps);
   return true;
 }
 
@@ -48,7 +53,7 @@ export default async function handler(req, res) {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=()');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
 
   const csp = [
     "default-src 'self'",
@@ -128,7 +133,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid URL construction', detail: urlErr.message });
   }
 
-  console.log(`[Proxy] ${req.method} ${path} -> ${targetUrl.toString()}`);
+  console.log(`[Proxy] ${req.method} ${path} → ${targetUrl.toString()}`);
 
   // ── Collect body explicitly (robust for Vercel) ──
   let bodyBuffer = Buffer.alloc(0);
