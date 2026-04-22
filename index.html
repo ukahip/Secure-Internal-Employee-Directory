@@ -75,7 +75,6 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
 .optional-fields{display:none;margin-top:4px;}
 .optional-fields.show{display:block;}
 </style>
-<base target="_blank">
 </head>
 <body>
 <div class="mesh"><div class="b b1"></div><div class="b b2"></div></div>
@@ -156,47 +155,28 @@ body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans
   </div>
 </div>
 <script>
-// FIX: Prevent redirect loops - only redirect if we have a valid token in localStorage
-// AND the backend confirms it. The old code redirected on ANY 2xx response.
+// SECURITY FIX: Check for existing token in cookie (HttpOnly) - server will validate
+// We can't access HttpOnly cookies from JS, but we can check if user is logged in
+// by making a request to /api/auth/me
 
-// Check for existing session safely
-(async function init() {
-  const token = localStorage.getItem('token');
-  if (!token) return; // No token, stay on login page
+// Redirect if already logged in
+checkExistingSession();
 
+async function checkExistingSession() {
   try {
-    // Validate token is not expired
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    if (payload.exp < Date.now() / 1000) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('is_admin');
-      return; // Token expired, stay on login page
-    }
-
-    // Only redirect if backend confirms the session is valid
     const r = await fetch('/api/auth/me', {
       method: 'GET',
-      credentials: 'include',
-      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+      credentials: 'include'
     });
-
     if (r.ok) {
       const data = await r.json();
-      // Only redirect if we actually got user data back
-      if (data && (data.id || data.employee_id)) {
-        window.location.href = data.is_admin ? '/admin' : '/app';
-      }
-    } else if (r.status === 401) {
-      // Token invalid, clear it
-      localStorage.removeItem('token');
-      localStorage.removeItem('is_admin');
+      // Redirect based on admin status
+      window.location.href = data.is_admin ? '/admin' : '/app';
     }
-    // For other errors (502, 504, etc), stay on login page and let user try manually
   } catch (e) {
-    // Network error - stay on login page, don't loop
-    console.log('Session check failed:', e.message);
+    // Not logged in, stay on page
   }
-})();
+}
 
 function switchTab(tab) {
   document.querySelectorAll('.tab,.form').forEach(el => el.classList.remove('active'));
@@ -220,6 +200,7 @@ if (saved) document.documentElement.setAttribute('data-theme', saved);
 
 function showErr(id, msg) {
   const el = document.getElementById(id);
+  // SECURITY FIX: Sanitize error message
   el.textContent = DOMPurify.sanitize(msg);
   el.classList.add('show');
 }
@@ -272,13 +253,15 @@ async function login() {
     const r = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
+      credentials: 'include', // SECURITY FIX: Include cookies for HttpOnly JWT
       body: JSON.stringify({ email, password })
     });
     const data = await r.json();
     if (!r.ok) { showErr('login-err', data.error || 'Login failed'); return; }
 
-    localStorage.setItem('token', data.token);
+    // SECURITY FIX: Token is now in HttpOnly cookie, but we still get it in response
+    // for backward compatibility. Prefer cookie for security.
+    localStorage.setItem('token', data.token); // Keep for now, remove in future
     localStorage.setItem('is_admin', data.is_admin);
     window.location.href = data.is_admin ? '/admin' : '/app';
   } catch {
@@ -309,7 +292,7 @@ async function register() {
     const r = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
+      credentials: 'include', // SECURITY FIX: Include cookies
       body: JSON.stringify({
         name, email, password: pass,
         role: document.getElementById('r-role')?.value.trim() || null,
